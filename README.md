@@ -4,6 +4,29 @@ DeepSeek Harness（DSH）的桌面管理端：PySide6 + QWebEngineView 嵌入真
 与浏览器对等（聊天/流式/审批/预览全功能），并原生托管 `dsh web` 服务器进程
 （启动/停止/重启/日志/托盘/单实例）。
 
+> 本项目是 [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
+> 的桌面客户端。它本身不含 DSH 后端，而是托管并嵌入 DSH 的 web 前端。
+> DSH 的用法/功能说明见其
+> [中文 README](https://github.com/deepseek-ai/deepseek-harness/blob/master/README.zh.md)。
+
+## 前置条件
+
+dsh-desktop 需要一个**已就绪的 deepseek-harness 检出**来运行 `dsh web` 服务器，
+请先完成 DSH 的初始化：
+
+1. 安装 [Node.js](https://nodejs.org)（v18+）与 pnpm：`npm i -g pnpm`
+2. 克隆并初始化 deepseek-harness：
+   ```bash
+   git clone https://github.com/deepseek-ai/deepseek-harness.git ~/deepseek-harness
+   cd ~/deepseek-harness
+   pnpm install          # 按 DSH 中文 README 完成初始化（依赖/配置等）
+   ```
+   详见 [DSH 中文 README](https://github.com/deepseek-ai/deepseek-harness/blob/master/README.zh.md)。
+3. 确认能手动跑起来：`pnpm dsh web`（能起服务即就绪）。
+
+> 桌面端默认从 `~/deepseek-harness` 启动服务器；检出在别处时，改配置
+> `repo_dir` 指向你的检出目录即可（见下文「配置」）。
+
 ## 从源码运行
 
 ```bash
@@ -11,8 +34,8 @@ uv sync
 uv run dsh-desktop
 ```
 
-需要本机有 `node` + `pnpm` 和一份 deepseek-harness 检出
-（默认 `~/deepseek-harness`，可在配置里改 `repo_dir`）。
+启动后桌面端会自动在 `repo_dir`（默认 `~/deepseek-harness`）里跑
+`pnpm dsh web --no-open --port <端口>` 并嵌入其 web 前端。
 
 ## 配置
 
@@ -42,10 +65,11 @@ uv run dsh-desktop
 - `dsh-desktop-linux-x64.tar.gz` — 目录包（`dsh-desktop/dsh-desktop` 可执行）
 - `dsh-desktop-macos.zip` — `dsh-desktop.app`
 
-**运行前提**（打包只含桌面端，不含 node/pnpm/DSH）：
+**运行前提**（打包只含桌面端，不含 node/pnpm/DSH，需先完成上文「前置条件」）：
 1. 安装 [Node.js](https://nodejs.org) + `npm i -g pnpm`
-2. 检出 deepseek-harness：`git clone <你的 DSH 仓库> ~/deepseek-harness`
-   （Windows: `C:\Users\<你>\deepseek-harness`）
+2. 检出并初始化 deepseek-harness：
+   `git clone https://github.com/deepseek-ai/deepseek-harness.git ~/deepseek-harness`
+   （Windows: `C:\Users\<你>\deepseek-harness`，然后 `pnpm install`）
 3. 解压运行（Windows 直接双击 .exe；Linux `tar xzf ... && ./dsh-desktop/dsh-desktop`）
 
 ## 本地构建（Nuitka）
