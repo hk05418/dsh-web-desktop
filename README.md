@@ -1,0 +1,80 @@
+# dsh-desktop
+
+DeepSeek Harness（DSH）的桌面管理端：PySide6 + QWebEngineView 嵌入真实 web 前端，
+与浏览器对等（聊天/流式/审批/预览全功能），并原生托管 `dsh web` 服务器进程
+（启动/停止/重启/日志/托盘/单实例）。
+
+## 从源码运行
+
+```bash
+uv sync
+uv run dsh-desktop
+```
+
+需要本机有 `node` + `pnpm` 和一份 deepseek-harness 检出
+（默认 `~/deepseek-harness`，可在配置里改 `repo_dir`）。
+
+## 配置
+
+- Linux/macOS: `~/.config/dsh_desktop/config.json`
+- Windows: `%APPDATA%\dsh_desktop\config.json`
+
+首次运行用默认值（随机端口、CPU 渲染、自动启动服务器）。字段：
+
+| 字段 | 说明 |
+|---|---|
+| `repo_dir` | deepseek-harness 检出目录 |
+| `server_command` | 服务器命令（Windows 自动用 `pnpm.cmd`） |
+| `port` | 0=随机端口；设 3080 可接管终端实例 |
+| `auto_start_server` | 启动应用时自动启动服务器 |
+| `auto_restart_on_crash` | 服务器崩溃自动重启 |
+| `disable_gpu` | 强制 CPU 渲染（Linux 默认 true，Windows 默认 false） |
+| `hide_to_tray` | 关窗缩到托盘 |
+| `zoom` | webview 初始缩放 |
+| `editor` | 打开配置文件用的编辑器（如 emacs/code），空=系统默认 |
+| `attach_line` | attach 模式：粘贴 `dsh web: http://.../?token=...` 行 |
+
+## 打包产物（GitHub Actions，Nuitka）
+
+推 tag（如 `v0.1.0`）自动构建三平台并发 Release：
+
+- `dsh-desktop-windows-x64.zip` — 单文件 `dsh-desktop.exe`（Nuitka one-file）
+- `dsh-desktop-linux-x64.tar.gz` — 目录包（`dsh-desktop/dsh-desktop` 可执行）
+- `dsh-desktop-macos.zip` — `dsh-desktop.app`
+
+**运行前提**（打包只含桌面端，不含 node/pnpm/DSH）：
+1. 安装 [Node.js](https://nodejs.org) + `npm i -g pnpm`
+2. 检出 deepseek-harness：`git clone <你的 DSH 仓库> ~/deepseek-harness`
+   （Windows: `C:\Users\<你>\deepseek-harness`）
+3. 解压运行（Windows 直接双击 .exe；Linux `tar xzf ... && ./dsh-desktop/dsh-desktop`）
+
+## 本地构建（Nuitka）
+
+```bash
+uv sync --no-dev
+uv pip install nuitka ordered-set zstandard
+# Linux standalone 额外需要 patchelf：
+uv pip install patchelf        # 或 sudo pacman -S patchelf / apt install patchelf
+uv run python scripts/build_nuitka.py
+# 产物在 dist/（dsh-desktop-<平台>-<架构>.zip / .tar.gz）
+```
+
+脚本按当前平台自动识别打包方式（Windows 单文件 .exe / Linux 目录包 /
+macOS .app），并自动打成分发压缩包。`--onefile` 可出单文件（Windows/Linux），
+`--dry-run` 只打印 Nuitka 命令。
+
+Nuitka 用 `pyside6` 插件自动收集 Qt 库/插件/资源（含 QtWebEngine）；
+Linux 构建机若装有系统 fcitx5 插件会一并打包，否则应用首次启动时
+从用户系统 Qt 自动补（见 PLAN.md §6.2）。
+
+> GitHub Actions（`.github/workflows/build.yml`）在三个平台 runner 上跑同一脚本，
+> 推 tag（如 `v0.1.0`）自动发 Release。
+
+## 开发
+
+```bash
+uv run pytest tests/ -q
+```
+
+架构与里程碑见 [PLAN.md](PLAN.md)（含白块根因 §6.1、中文输入根因 §6.2、
+Windows 适配 §6.3）。

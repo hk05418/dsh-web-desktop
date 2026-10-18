@@ -227,6 +227,28 @@ dsh-desktop = "dsh_desktop.__main__:main"
 `STARTING` 且窗口已可见（重启而非首次启动）时切到占位层，`READY` 时切回 webview，
 避免重启期间 webview 里 "connection lost, retry #N" 闪烁。
 
+## 6.4 Nuitka 打包（2026-10-18）
+
+用 Nuitka（非 PyInstaller）打包三平台：Windows 单文件 .exe / Linux 目录包 /
+macOS .app。构建脚本 `scripts/build_nuitka.py`（参考 LYZNote 同名脚本，平台自动
+识别 + 前置检查 + 后处理打包），GitHub Actions（`.github/workflows/build.yml`）
+在三个 runner 上跑同一脚本，推 tag 自动发 Release。
+
+关键坑（Nuitka 4.3.1 + PySide6）：
+1. **选项名**：`--enable-plugins=pyside6`（非 `--enable-plugin`/`--plugin-enable`）；
+   `--include-data-files=`（非 `--include-data-file`）；**无 `--include-path`**——
+   靠 `PYTHONPATH=src` 让 Nuitka 经 sys.path 解析 `dsh_desktop` 包。
+2. **Linux standalone 需要 patchelf**（`uv pip install patchelf` 或系统包）。
+3. **fcitx5 插件路径**（最隐蔽）：Nuitka pyside6 插件把 Qt 插件收集到
+   `PySide6/qt-plugins/`（非 `PySide6/Qt/plugins/`），且运行时
+   `QCoreApplication.setLibraryPaths([<bundle>/PySide6/qt-plugins])` 是**替换**
+   （唯一搜索路径）。故 fcitx5 插件必须放 `PySide6/qt-plugins/platforminputcontexts/`
+   才能被找到（`QT_DEBUG_PLUGINS=1` 验证：`checking directory .../qt-plugins/
+   platforminputcontexts` → `Found metadata ... "fcitx","fcitx5"`）。
+   构建脚本 `--include-data-files` 目标已对齐；运行时 `_ensure_fcitx5_plugin`
+   按"`PySide6/qt-plugins` 目录存在即为 Nuitka 布局，否则 venv `Qt/plugins`"
+   确定唯一活跃路径（`__compiled__` 标记在 Nuitka 4.x 不可靠，弃用）。
+
 ## 7. 约定
 
 - 服务器进程归桌面端独占管理（attach 模式除外）；不追求同时管两个实例。

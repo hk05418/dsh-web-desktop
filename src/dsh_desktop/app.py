@@ -39,53 +39,75 @@ def _parse_attach(line: str) -> ReadyInfo | None:
     return None
 
 
-def _ensure_fcitx5_plugin() -> None:
-    """Ensure the fcitx5 input-context plugin is present in this venv's Qt.
+def _active_fcitx5_base() -> "Path | None":
+    """The plugin-base dir Qt actually searches (contains ``platforminputcontexts/``).
 
-    Linux/X11 only: Qt6 drives fcitx5 through the platforminputcontexts plugin,
-    which the PySide6 wheel from PyPI does NOT ship, so Chinese input silently
-    fails (no candidate window). If the plugin is missing, copy it from the
-    system Qt (requires matching major.minor version — the plugin is ABI-bound
-    to Qt). Idempotent: a no-op once the plugin is present. On Windows/macOS the
-    OS provides the IME, so this is a no-op.
+    - Nuitka standalone: ``<PySide6>/qt-plugins`` — Nuitka's pyside6 plugin sets
+      QCoreApplication library paths to exactly this dir, so the fcitx5 plugin
+      must live here to be found at runtime. Detected by the dir's presence.
+    - venv (from source): ``<PySide6>/Qt/plugins``.
     """
-    import sys
-
-    if sys.platform != "linux":
-        return
-    import shutil
     from pathlib import Path
 
     try:
         import PySide6
 
-        qt_dir = Path(PySide6.__file__).parent / "Qt"
+        p = Path(PySide6.__file__).resolve().parent
     except Exception:
+        return None
+    nuitka_base = p / "qt-plugins"
+    if nuitka_base.is_dir():
+        return nuitka_base
+    return p / "Qt" / "plugins"
+
+
+def _ensure_fcitx5_plugin() -> None:
+    """Ensure the fcitx5 input-context plugin is present in this app's Qt.
+
+    Linux/X11 only: Qt6 drives fcitx5 through the platforminputcontexts plugin,
+    which the PySide6 wheel from PyPI does NOT ship, so Chinese input silently
+    fails (no candidate window). If the plugin is missing from the app's Qt
+    (venv or frozen bundle), copy it from the system Qt (requires matching
+    major.minor version — the plugin is ABI-bound to Qt). Idempotent: a no-op
+    once present. On Windows/macOS the OS provides the IME, so this is a no-op.
+    """
+    if sys.platform != "linux":
         return
-    plugin_dir = qt_dir / "plugins" / "platforminputcontexts"
-    target = plugin_dir / "libfcitx5platforminputcontextplugin.so"
-    if target.exists():
-        return
+    import shutil
+    from pathlib import Path
+
     name = "libfcitx5platforminputcontextplugin.so"
-    candidates = [
-        Path(f"/usr/lib/qt6/plugins/platforminputcontexts/{name}"),
-        Path(f"/usr/lib64/qt6/plugins/platforminputcontexts/{name}"),
-        Path(f"/usr/lib/x86_64-linux-gnu/qt6/plugins/platforminputcontexts/{name}"),
-    ]
-    for src in candidates:
-        if src.exists():
-            try:
-                plugin_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src, target)
-                print(f"[ime] copied fcitx5 input plugin from {src}", flush=True)
-            except Exception as e:  # noqa: BLE001 - report and continue
-                print(f"[ime] failed to copy fcitx5 plugin: {e}", flush=True)
-            return
-    print(
-        "[ime] fcitx5 input plugin missing from venv and system Qt; "
-        "Chinese input may not work on X11",
-        flush=True,
+    base = _active_fcitx5_base()
+    if base is None:
+        return
+    target_dir = base / "platforminputcontexts"
+    if (target_dir / name).exists():
+        return  # already present in the dir Qt searches
+    src = next(
+        (
+            Path(p)
+            for p in (
+                f"/usr/lib/qt6/plugins/platforminputcontexts/{name}",
+                f"/usr/lib64/qt6/plugins/platforminputcontexts/{name}",
+                f"/usr/lib/x86_64-linux-gnu/qt6/plugins/platforminputcontexts/{name}",
+            )
+            if Path(p).exists()
+        ),
+        None,
     )
+    if src is None:
+        print(
+            "[ime] fcitx5 input plugin missing from app and system Qt; "
+            "Chinese input may not work on X11",
+            flush=True,
+        )
+        return
+    try:
+        target_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, target_dir / name)
+        print(f"[ime] copied fcitx5 input plugin from {src} to {target_dir}", flush=True)
+    except OSError as e:  # noqa: BLE001 - report
+        print(f"[ime] failed to copy fcitx5 plugin to {target_dir}: {e}", flush=True)
 
 
 def main() -> int:
