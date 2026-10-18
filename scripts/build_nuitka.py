@@ -156,8 +156,9 @@ def _find_nuitka_output(plat_name: str, onefile: bool) -> Path | None:
         exe = DIST / f"{APP_NAME}.exe"
         return exe if exe.is_file() else None
     if plat_name == "macos":
-        # .app 可能在 .dist 目录内或 dist 根
-        for cand in (DIST / f"{APP_NAME}.app", DIST / f"{APP_NAME}.dist" / f"{APP_NAME}.app"):
+        # Nuitka 按入口脚本命名 .app（main.py -> main.app）；--macos-app-name
+        # 只改 Info.plist 的 CFBundleName，不改目录名。故探测 dist 下任意 .app。
+        for cand in sorted(DIST.glob("*.app")):
             if cand.is_dir():
                 return cand
         return None
@@ -173,6 +174,14 @@ def _find_nuitka_output(plat_name: str, onefile: bool) -> Path | None:
         if d.is_dir():
             return d
     return None
+
+
+def _zip_dir(dir_path: Path, out_path: Path, arcname_root: str) -> None:
+    """Zip a directory tree; files stored under ``arcname_root/``."""
+    with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in sorted(dir_path.rglob("*")):
+            if f.is_file():
+                zf.write(f, arcname=f"{arcname_root}/{f.relative_to(dir_path).as_posix()}")
 
 
 def post_build(plat: dict, args: argparse.Namespace) -> Path:
@@ -202,14 +211,40 @@ def post_build(plat: dict, args: argparse.Namespace) -> Path:
                 tf.add(stage, arcname=APP_NAME)
             shutil.rmtree(stage)
     elif plat_name == "macos":
-        with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.write(src, arcname=src.name, recursive=True)
+        # 找到的 .app 可能叫 main.app（按入口脚本命名）；统一重命名为
+        # dsh-desktop.app 再打包，保证解压后是 dsh-desktop.app。
+        app_bundle = src if src.name == f"{APP_NAME}.app" else None
+        if app_bundle is None:
+            stage = DIST / f"{APP_NAME}.app"
+            if stage.exists():
+                shutil.rmtree(stage)
+            shutil.copytree(src, stage)
+            app_bundle = stage
+        _zip_dir(app_bundle, out_path, f"{APP_NAME}.app")
+        if app_bundle != src:
+            shutil.rmtree(app_bundle)
     else:
         raise SystemExit(f"不支持的平台: {plat_name}")
     return out_path
 
 
+def _force_utf8_stdio() -> None:
+    """Force UTF-8 on stdout/stderr.
+
+    Windows consoles default to cp1252 (and piped output to the locale
+    encoding), so printing Chinese (e.g. "打包") raises UnicodeEncodeError.
+    Reconfigure to UTF-8 so the script works on all platforms.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8")
+            except Exception:  # noqa: BLE001 - best effort
+                pass
+
+
 def main(argv: list[str]) -> int:
+    _force_utf8_stdio()
     parser = argparse.ArgumentParser(
         description="dsh-desktop 通用 Nuitka 打包脚本：按当前平台自动打包",
         formatter_class=argparse.RawDescriptionHelpFormatter,

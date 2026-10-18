@@ -16,6 +16,9 @@ jobs:
           - os: ubuntu-latest
           - os: macos-latest
     runs-on: ${{ matrix.os }}
+    env:
+      # Windows 控制台默认 cp1252，强制 UTF-8 避免中文输出 UnicodeEncodeError
+      PYTHONIOENCODING: utf-8
     steps:
       - uses: actions/checkout@v4
 
