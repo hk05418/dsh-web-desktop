@@ -16,6 +16,21 @@ else:
 CONFIG_PATH = CONFIG_DIR / "config.json"
 
 
+def is_valid_dsh_repo(path: str) -> bool:
+    """True if ``path`` is a usable deepseek-harness checkout.
+
+    A valid checkout contains the DSH CLI entry (``apps/cli/src/bin.ts``) — the
+    file ``pnpm dsh`` runs. This is specific to deepseek-harness (a plain
+    ``package.json`` is not enough).
+    """
+    from pathlib import Path
+
+    p = Path(path)
+    if not p.is_dir():
+        return False
+    return (p / "apps" / "cli" / "src" / "bin.ts").is_file()
+
+
 @dataclass
 class Config:
     # Where `pnpm dsh web` is launched from (the deepseek-harness checkout).

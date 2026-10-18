@@ -24,8 +24,14 @@ dsh-desktop 需要一个**已就绪的 deepseek-harness 检出**来运行 `dsh w
    详见 [DSH 中文 README](https://github.com/deepseek-ai/deepseek-harness/blob/master/README.zh.md)。
 3. 确认能手动跑起来：`pnpm dsh web`（能起服务即就绪）。
 
-> 桌面端默认从 `~/deepseek-harness` 启动服务器；检出在别处时，改配置
-> `repo_dir` 指向你的检出目录即可（见下文「配置」）。
+> **检出目录可任意放置**（不必在 `~` 下，Windows 放 D 盘也行）。桌面端默认
+> 从 `~/deepseek-harness` 启动服务器；放在别处时，有两种方式告诉桌面端：
+>
+> - **首次运行自动检测**：启动时若 `repo_dir` 不是有效检出（缺
+>   `apps/cli/src/bin.ts`），会弹窗让你用文件选择器选目录，自动写回配置。
+> - **随时改**：菜单 **服务器 → 设置 DSH 目录…**，选目录后自动保存并重启服务器。
+>
+> 也可直接改配置 `repo_dir` 字段（见下文「配置」）。
 
 ## 从源码运行
 
@@ -46,7 +52,7 @@ uv run dsh-desktop
 
 | 字段 | 说明 |
 |---|---|
-| `repo_dir` | deepseek-harness 检出目录 |
+| `repo_dir` | deepseek-harness 检出目录（默认 `~/deepseek-harness`，可任意位置；无效时启动会弹窗选择，或菜单「服务器 → 设置 DSH 目录…」） |
 | `server_command` | 服务器命令（Windows 自动用 `pnpm.cmd`） |
 | `port` | 0=随机端口；设 3080 可接管终端实例 |
 | `auto_start_server` | 启动应用时自动启动服务器 |

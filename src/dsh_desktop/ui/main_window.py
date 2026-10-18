@@ -139,7 +139,9 @@ class MainWindow(QMainWindow):
         self._act_log.triggered.connect(self._open_log)
         act_webcfg = QAction("打开 dsh-web 配置文件(&W)…", self)
         act_webcfg.triggered.connect(self._open_web_config)
-        for action in (self._act_start, self._act_stop, self._act_restart, self._act_log, act_webcfg):
+        act_repodir = QAction("设置 DSH 目录(&D)…", self)
+        act_repodir.triggered.connect(self._set_repo_dir)
+        for action in (self._act_start, self._act_stop, self._act_restart, self._act_log, act_webcfg, act_repodir):
             m_server.addAction(action)
 
         m_view = menubar.addMenu("视图(&V)")
@@ -256,6 +258,52 @@ class MainWindow(QMainWindow):
             )
             return
         self._open_in_editor(path)
+
+    def _set_repo_dir(self) -> None:
+        """Pick the deepseek-harness checkout dir; update config + restart server.
+
+        The server process uses repo_dir as its cwd, so a change requires a
+        server restart to take effect.
+        """
+        from pathlib import Path
+
+        from PySide6.QtWidgets import QFileDialog
+
+        from ..config import is_valid_dsh_repo
+
+        initial = str(Path(self._config.repo_dir)) if Path(self._config.repo_dir).exists() else str(Path.home())
+        while True:
+            path = QFileDialog.getExistingDirectory(
+                self, "选择 deepseek-harness 检出目录", initial
+            )
+            if not path:
+                return  # cancelled
+            if is_valid_dsh_repo(path):
+                break
+            if QMessageBox.question(
+                self,
+                "目录无效",
+                f"所选目录不是有效的 deepseek-harness 检出（缺少 apps/cli/src/bin.ts）：\n{path}\n\n"
+                "仍要使用它吗？（服务器可能无法启动）",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            ) != QMessageBox.StandardButton.Yes:
+                continue
+            break  # user insists on using the invalid dir
+
+        if path == self._config.repo_dir:
+            return  # unchanged
+        self._config.repo_dir = path
+        self._config.save()
+        self._server.log_line.emit(f"repo_dir 更新为 {path}（重启服务器生效）")
+        # Restart the server so the new cwd takes effect (if it's running).
+        if self._server.state in (ServerState.READY, ServerState.STARTING):
+            self._server.restart()
+        QMessageBox.information(
+            self,
+            "DSH 目录已更新",
+            f"repo_dir 已设为：\n{path}\n\n"
+            + ("服务器已重启以应用新目录。" if self._server.state == ServerState.STARTING else "下次启动服务器时生效。"),
+        )
 
     def open_log(self) -> None:
         """Public log-window entry point (tray menu)."""

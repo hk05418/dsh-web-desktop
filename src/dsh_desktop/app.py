@@ -110,6 +110,54 @@ def _ensure_fcitx5_plugin() -> None:
         print(f"[ime] failed to copy fcitx5 plugin to {target_dir}: {e}", flush=True)
 
 
+def _ensure_repo_dir(config: Config) -> bool:
+    """Ensure ``config.repo_dir`` is a valid DSH checkout; prompt to pick if not.
+
+    Shown at launch whenever the configured dir is missing/invalid. Lets the
+    user choose the deepseek-harness checkout via a directory picker; a valid
+    selection is written back to the config. Returns True to proceed, False to
+    exit (user cancelled or no valid dir chosen).
+    """
+    from pathlib import Path
+
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+
+    from .config import is_valid_dsh_repo
+
+    if is_valid_dsh_repo(config.repo_dir):
+        return True
+
+    QMessageBox.warning(
+        None,
+        "DSH 目录未就绪",
+        f"未找到有效的 deepseek-harness 检出：\n{config.repo_dir}\n\n"
+        "有效检出需包含 apps/cli/src/bin.ts。\n"
+        "请选择 deepseek-harness 检出目录（或取消退出）。",
+    )
+    while True:
+        initial = (
+            str(Path(config.repo_dir))
+            if Path(config.repo_dir).exists()
+            else str(Path.home())
+        )
+        path = QFileDialog.getExistingDirectory(
+            None, "选择 deepseek-harness 检出目录", initial
+        )
+        if not path:
+            return False  # cancelled
+        if is_valid_dsh_repo(path):
+            config.repo_dir = path
+            config.save()
+            print(f"[config] repo_dir 更新为 {path}", flush=True)
+            return True
+        QMessageBox.warning(
+            None,
+            "目录无效",
+            f"所选目录不是有效的 deepseek-harness 检出（缺少 apps/cli/src/bin.ts）：\n"
+            f"{path}\n\n请重新选择，或取消退出。",
+        )
+
+
 def main() -> int:
     global _app, _lock
     config = Config.load()
@@ -134,6 +182,14 @@ def main() -> int:
         print("dsh-desktop 已在运行")
         return 0
 
+    attach = _parse_attach(config.attach_line) if config.attach_line else None
+
+    # First-launch / invalid-dir detection: ensure repo_dir is a valid DSH
+    # checkout (prompt to pick). Skipped in attach mode (external server).
+    if attach is None and not _ensure_repo_dir(config):
+        _lock.unlock()
+        return 1
+
     server = ServerManager(config)
     probe = ProbeWorker(server.target)
     window = MainWindow(config, server, probe)
@@ -147,7 +203,6 @@ def main() -> int:
     tray.open_log.connect(window.open_log)
     tray.quit_app.connect(window.request_quit)
 
-    attach = _parse_attach(config.attach_line) if config.attach_line else None
     if attach is not None:
         server.log_line.emit("attach 模式：连接外部 dsh web 实例（不托管进程）")
         server.attach(attach)
