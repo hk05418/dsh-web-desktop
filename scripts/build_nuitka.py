@@ -229,6 +229,10 @@ def post_build(plat: dict, args: argparse.Namespace) -> Path:
             if stage.exists():
                 shutil.rmtree(stage)
             shutil.copytree(src, stage)
+            # 附带 .desktop 文件（应用菜单入口）
+            desktop_file = PROJECT_ROOT / f"{APP_NAME}.desktop"
+            if desktop_file.is_file():
+                shutil.copy2(desktop_file, stage / desktop_file.name)
             with tarfile.open(out_path, "w:gz") as tf:
                 tf.add(stage, arcname=APP_NAME)
             shutil.rmtree(stage)

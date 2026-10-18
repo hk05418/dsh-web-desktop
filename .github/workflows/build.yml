@@ -13,8 +13,11 @@ jobs:
       matrix:
         include:
           - os: windows-latest
+            label: windows
           - os: ubuntu-latest
+            label: linux
           - os: macos-latest
+            label: macos
     runs-on: ${{ matrix.os }}
     env:
       # Windows 控制台默认 cp1252，强制 UTF-8 避免中文输出 UnicodeEncodeError
@@ -48,7 +51,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dsh-desktop-${{ matrix.os }}
+          name: dsh-desktop-${{ matrix.label }}
           path: dist/dsh-desktop-*
 
   release:

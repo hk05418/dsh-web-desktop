@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=dsh-desktop
+GenericName=DSH Desktop
+Comment=DeepSeek Harness desktop client
+# NOTE: set Exec to the absolute path of the dsh-desktop executable after
+# extracting the package, e.g. Exec=/home/<you>/dsh-desktop/dsh-desktop
+Exec=dsh-desktop
+Icon=dsh-desktop
+Terminal=false
+Categories=Utility;Network;
+StartupNotify=true
