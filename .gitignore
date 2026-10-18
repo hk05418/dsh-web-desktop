@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Test / tooling caches
+.pytest_cache/
+.uvcache/
+.cache/
+.mypy_cache/
+.ruff_cache/
+
+# Diagnostic / scratch artifacts (screen captures, debug images)
+*.diag.png
+diag_*.png
+*_test.png
+status_check.png
+zoom_test.png
+
+# Local notes / secrets (never commit tokens or machine-specific notes)
+*.local.md
+.env
