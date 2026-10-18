@@ -67,7 +67,8 @@ uv run dsh-desktop
 
 推 tag（如 `v0.1.0`）自动构建三平台并发 Release：
 
-- `dsh-desktop-windows-x64.zip` — 单文件 `dsh-desktop.exe`（Nuitka one-file）
+- `dsh-desktop-windows-x64.zip` — 目录包（`dsh-desktop\dsh-desktop.exe` 启动；
+  onedir 模式，QtWebEngine 更可靠。如需单文件可本地 `--onefile` 构建）
 - `dsh-desktop-linux-x64.tar.gz` — 目录包（`dsh-desktop/dsh-desktop` 可执行）
 - `dsh-desktop-macos.zip` — `dsh-desktop.app`
 
@@ -76,7 +77,10 @@ uv run dsh-desktop
 2. 检出并初始化 deepseek-harness：
    `git clone https://github.com/deepseek-ai/deepseek-harness.git ~/deepseek-harness`
    （Windows: `C:\Users\<你>\deepseek-harness`，然后 `pnpm install`）
-3. 解压运行（Windows 直接双击 .exe；Linux `tar xzf ... && ./dsh-desktop/dsh-desktop`）
+3. 解压运行：
+   - Windows：解压后双击 `dsh-desktop\dsh-desktop.exe`
+   - Linux：`tar xzf ... && ./dsh-desktop/dsh-desktop`
+   - macOS：解压后打开 `dsh-desktop.app`
 
 ## 本地构建（Nuitka）
 

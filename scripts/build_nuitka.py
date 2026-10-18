@@ -153,8 +153,20 @@ def build_nuitka_args(plat_name: str, args: argparse.Namespace) -> list[str]:
 def _find_nuitka_output(plat_name: str, onefile: bool) -> Path | None:
     """定位 Nuitka 实际产物（不同版本布局可能不同，做通用探测）。"""
     if plat_name == "windows":
+        # onefile: dist/dsh-desktop.exe（单文件）
         exe = DIST / f"{APP_NAME}.exe"
-        return exe if exe.is_file() else None
+        if exe.is_file():
+            return exe
+        # onedir: dist/main.dist/（目录，内含 dsh-desktop.exe）
+        if onefile:
+            return None
+        dist_dir = DIST / f"{APP_NAME}.dist"
+        if dist_dir.is_dir():
+            return dist_dir
+        for d in sorted(DIST.glob("*.dist")):
+            if (d / f"{APP_NAME}.exe").is_file():
+                return d
+        return None
     if plat_name == "macos":
         # Nuitka 按入口脚本命名 .app（main.py -> main.app）；--macos-app-name
         # 只改 Info.plist 的 CFBundleName，不改目录名。故探测 dist 下任意 .app。
@@ -194,8 +206,18 @@ def post_build(plat: dict, args: argparse.Namespace) -> Path:
         raise SystemExit(f"未在 {DIST}/ 找到 Nuitka 产物，请检查构建日志")
 
     if plat_name == "windows":
-        with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.write(src, arcname=src.name)
+        if src.is_file():
+            # onefile：单文件 exe 直接进 zip
+            with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.write(src, arcname=src.name)
+        else:
+            # onedir：目录包重命名为 dsh-desktop/ 再打 zip
+            stage = DIST / APP_NAME
+            if stage.exists():
+                shutil.rmtree(stage)
+            shutil.copytree(src, stage)
+            _zip_dir(stage, out_path, APP_NAME)
+            shutil.rmtree(stage)
     elif plat_name == "linux":
         if args.onefile and src.is_file():
             # onefile：单文件直接进 tar.gz
