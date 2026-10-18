@@ -69,7 +69,8 @@ uv run dsh-desktop
 
 - `dsh-desktop-windows-x64.zip` — 目录包（`dsh-desktop\dsh-desktop.exe` 启动；
   onedir 模式，QtWebEngine 更可靠。如需单文件可本地 `--onefile` 构建）
-- `dsh-desktop-linux-x64.tar.gz` — 目录包（`dsh-desktop/dsh-desktop` 可执行）
+- `dsh-desktop-linux-x64.tar.gz` — 目录包（`dsh-desktop/dsh-desktop` 可执行；
+  含 `dsh-desktop.desktop` 应用菜单入口 + `dsh-desktop.png` 鲸鱼图标）
 - `dsh-desktop-macos.zip` — `dsh-desktop.app`
 
 **运行前提**（打包只含桌面端，不含 node/pnpm/DSH，需先完成上文「前置条件」）：
@@ -81,6 +82,20 @@ uv run dsh-desktop
    - Windows：解压后双击 `dsh-desktop\dsh-desktop.exe`
    - Linux：`tar xzf ... && ./dsh-desktop/dsh-desktop`
    - macOS：解压后打开 `dsh-desktop.app`
+
+### Linux 加入应用菜单（可选）
+
+包内附 `dsh-desktop.desktop`（鲸鱼图标入口）。解压到某目录（如 `~/dsh-desktop`）后：
+
+```bash
+# 把 Exec/Icon 改成你的实际路径，再装到用户应用目录
+sed -e "s|^Exec=.*|Exec=$HOME/dsh-desktop/dsh-desktop|" \
+    -e "s|^Icon=.*|Icon=$HOME/dsh-desktop/dsh-desktop.png|" \
+    dsh-desktop/dsh-desktop.desktop > ~/.local/share/applications/dsh-desktop.desktop
+update-desktop-database ~/.local/share/applications 2>/dev/null || true
+```
+
+之后在应用菜单里就能找到「dsh-desktop」（鲸鱼图标）。
 
 ## 本地构建（Nuitka）
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer, QUrl
-from PySide6.QtGui import QAction, QActionGroup, QDesktopServices
+from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtWebEngineCore import QWebEngineProfile
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
-from ..config import Config
+from ..config import Config, find_app_icon
 from ..probe.worker import ProbeWorker
 from ..server.capture import ReadyInfo
 from ..server.manager import ServerManager, ServerState
@@ -47,6 +47,9 @@ class MainWindow(QMainWindow):
         self._log_window: LogWindow | None = None
 
         self.setWindowTitle("DeepSeek Harness")
+        icon_path = find_app_icon()
+        if icon_path is not None:
+            self.setWindowIcon(QIcon(str(icon_path)))
         self.resize(1440, 900)
 
         self._view = QWebEngineView(self)

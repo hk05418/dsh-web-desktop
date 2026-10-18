@@ -23,12 +23,29 @@ def is_valid_dsh_repo(path: str) -> bool:
     file ``pnpm dsh`` runs. This is specific to deepseek-harness (a plain
     ``package.json`` is not enough).
     """
-    from pathlib import Path
-
     p = Path(path)
     if not p.is_dir():
         return False
     return (p / "apps" / "cli" / "src" / "bin.ts").is_file()
+
+
+def find_app_icon() -> Path | None:
+    """Locate the app icon (``dsh-desktop.png``), or None if absent.
+
+    - Nuitka bundle: next to the executable (``<exe_dir>/dsh-desktop.png``).
+    - venv (source run): at the project root (two levels above this package).
+    """
+    candidates: list[Path] = []
+    try:
+        candidates.append(Path(sys.executable).resolve().parent / "dsh-desktop.png")
+    except Exception:  # noqa: BLE001
+        pass
+    # config.py is at <project>/src/dsh_desktop/config.py -> project root is 2 up
+    candidates.append(Path(__file__).resolve().parent.parent.parent / "dsh-desktop.png")
+    for c in candidates:
+        if c.is_file():
+            return c
+    return None
 
 
 @dataclass

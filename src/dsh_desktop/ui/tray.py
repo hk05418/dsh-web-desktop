@@ -7,7 +7,7 @@ from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
-from ..config import Config
+from ..config import Config, find_app_icon
 from ..server.manager import ServerManager, ServerState
 
 _STATE_COLORS = {
@@ -26,14 +26,22 @@ _STATE_TEXT = {
 }
 
 
-def _dot_icon(color: str) -> QIcon:
-    pixmap = QPixmap(22, 22)
+def _dot_icon(color: str, base: QPixmap | None = None) -> QIcon:
+    """Tray icon: optional base (whale logo) + a status dot in the corner."""
+    size = 22
+    pixmap = QPixmap(size, size)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    if base is not None and not base.isNull():
+        painter.drawPixmap(0, 0, size, size, base)
+    # Status dot (bottom-right), with a white border for visibility on any base.
+    dot = 9
+    x = size - dot - 1
+    y = size - dot - 1
+    painter.setPen(QColor("white"))
     painter.setBrush(QColor(color))
-    painter.setPen(Qt.PenStyle.NoPen)
-    painter.drawEllipse(3, 3, 16, 16)
+    painter.drawEllipse(x, y, dot, dot)
     painter.end()
     return QIcon(pixmap)
 
@@ -52,6 +60,11 @@ class TrayController(QObject):
         super().__init__(parent)
         self._tray = QSystemTrayIcon(self)
         self._tray.setToolTip("dsh-desktop")
+        # Base icon (whale logo) for the tray; None falls back to a plain dot.
+        self._base: QPixmap | None = None
+        icon_path = find_app_icon()
+        if icon_path is not None:
+            self._base = QPixmap(str(icon_path))
         self._menu = QMenu()
         # NOTE: pass a callable (not a Signal) to addAction — PySide6 6.12 rejects
         # a Signal as the slot ("native Qt signal instance is not callable").
@@ -85,7 +98,7 @@ class TrayController(QObject):
 
     def _on_state(self, state: str) -> None:
         color = _STATE_COLORS.get(state, "#8a8f98")
-        self._tray.setIcon(_dot_icon(color))
+        self._tray.setIcon(_dot_icon(color, self._base))
         self._tray.setToolTip(f"dsh-desktop — {_STATE_TEXT.get(state, state)}")
         running = state in (ServerState.READY, ServerState.STARTING)
         self._act_start.setEnabled(not running)
