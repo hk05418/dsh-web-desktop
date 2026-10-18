@@ -208,6 +208,25 @@ dsh-desktop = "dsh_desktop.__main__:main"
 
 维护提示：Arch `pacman -Syu` 升级系统 Qt 后若中文输入失效，先比 `pacman -Q qt6-base` 与 venv PySide6 版本，对齐后重拷新插件（旧插件 ABI 不兼容）。
 
+## 6.3 Windows 跨平台适配（2026-10-18）
+
+目标：不止能在本机（Linux/X11）用，也要能在 Windows 上跑。逐点适配：
+
+| 点 | Linux | Windows | 处理 |
+|---|---|---|---|
+| fcitx5 中文输入插件 | 需要（venv PySide6 缺，启动自检 `_ensure_fcitx5_plugin` 从系统 Qt 补） | 不需要（OS 提供 IME） | `_ensure_fcitx5_plugin` 加 `sys.platform != "linux"` 守卫，非 Linux 直接 return |
+| GPU 渲染 | 无 GPU 机器需 `--disable-gpu`（软件渲染白块风险） | 有 GPU，正常硬件渲染 | `Config.disable_gpu` 默认值平台感知：Linux 默认 `True`、Windows/macOS 默认 `False`（`field(default_factory=...)`）；用户可在 config.json 覆盖 |
+| 服务器命令 | `pnpm dsh web` | `pnpm` 是批处理脚本 `pnpm.cmd`（非 pnpm.exe） | 默认 `server_command` 平台感知（Windows 用 `pnpm.cmd`）；`ServerManager._command()` 额外把裸 `pnpm` 归一化为 `pnpm.cmd`（兼容旧配置） |
+| 配置路径 | `~/.config/dsh_desktop/config.json`（`$XDG_CONFIG_HOME`） | `%APPDATA%\dsh_desktop\config.json` | `config.py` 的 `CONFIG_DIR` 平台感知（`os.name == "nt"` 走 `%APPDATA%`） |
+| 托盘右键菜单 | CWM 托盘原生菜单不触发 Qt 动作 → 手动 `Context` 激活 + Qt 菜单 | 原生托盘菜单正常触发 | `tray.py` 平台感知：Windows 用 `setContextMenu`，Linux 用手动 `Context` 弹 Qt 菜单 |
+| dsh-web 配置路径 | `~/.dsh/profiles/web/cordis.patch.yml` | `C:\Users\<u>\.dsh\profiles\web\cordis.patch.yml` | `Path.home()` 跨平台，无需改 |
+| 编辑器 | config `editor`（如 emacs） | config `editor`（如 notepad/code） | 用户按平台在 config.json 设 `editor`；`QProcess.startDetached` 跨平台 |
+
+重启遮罩（跨平台）：`QWebEngineView` 是原生表面，Qt 控件无法叠在其上，故用
+`QStackedWidget`（page0=webview、page1=占位层"服务器重启中…"）切换。服务器状态
+`STARTING` 且窗口已可见（重启而非首次启动）时切到占位层，`READY` 时切回 webview，
+避免重启期间 webview 里 "connection lost, retry #N" 闪烁。
+
 ## 7. 约定
 
 - 服务器进程归桌面端独占管理（attach 模式除外）；不追求同时管两个实例。
